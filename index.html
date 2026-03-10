@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Naitus — Generador de Contenido</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080808;
+      --surface:   #111111;
+      --border:    #1f1f1f;
+      --accent:    #c8f135;
+      --accent2:   #7ef7c4;
+      --text:      #e8e8e8;
+      --muted:     #444;
+      --danger:    #ff4d4d;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Noise grain overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.6;
+    }
+
+    /* ── Ambient glow ── */
+    .glow {
+      position: fixed;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      filter: blur(140px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      animation: glowFade 1.4s ease forwards 0.3s;
+    }
+    .glow-1 {
+      background: radial-gradient(circle, rgba(200,241,53,0.12) 0%, transparent 70%);
+      top: -200px; left: -100px;
+    }
+    .glow-2 {
+      background: radial-gradient(circle, rgba(126,247,196,0.08) 0%, transparent 70%);
+      bottom: -200px; right: -100px;
+    }
+    @keyframes glowFade { to { opacity: 1; } }
+
+    /* ── Layout ── */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 36px 48px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      opacity: 0;
+      transform: translateY(-12px);
+      animation: slideDown 0.7s cubic-bezier(0.22,1,0.36,1) forwards 0.1s;
+    }
+    @keyframes slideDown { to { opacity: 1; transform: none; } }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-mark {
+      width: 32px; height: 32px;
+      border: 1.5px solid var(--accent);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+    }
+    .logo-mark svg { width: 16px; height: 16px; }
+    .logo-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .header-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* ── Main center ── */
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      text-align: center;
+    }
+
+    .eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards 0.4s;
+    }
+
+    h1 {
+      font-size: clamp(42px, 6vw, 72px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      color: var(--text);
+      margin-bottom: 18px;
+      opacity: 0;
+      animation: fadeUp 0.7s ease forwards 0.5s;
+    }
+    h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 360px;
+      margin-bottom: 56px;
+      opacity: 0;
+      animation: fadeUp 0.7s ease forwards 0.6s;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* ── Button ── */
+    .btn-wrap {
+      opacity: 0;
+      animation: fadeUp 0.7s ease forwards 0.75s;
+    }
+
+    .trigger-btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 20px 48px;
+      background: var(--accent);
+      color: #080808;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+      box-shadow: 0 0 0 0 rgba(200,241,53,0);
+      overflow: hidden;
+    }
+    .trigger-btn::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .trigger-btn:hover:not(:disabled)::before { opacity: 1; }
+    .trigger-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(200,241,53,0.35);
+    }
+    .trigger-btn:active:not(:disabled) {
+      transform: translateY(0px);
+    }
+    .trigger-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.85;
+    }
+
+    /* States */
+    .trigger-btn.loading {
+      background: #1a1a1a;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      box-shadow: none;
+    }
+    .trigger-btn.success {
+      background: var(--accent2);
+      color: #080808;
+      box-shadow: 0 12px 40px rgba(126,247,196,0.3);
+    }
+    .trigger-btn.error {
+      background: var(--danger);
+      color: #fff;
+      box-shadow: 0 12px 40px rgba(255,77,77,0.3);
+    }
+
+    /* Icon */
+    .btn-icon {
+      width: 20px; height: 20px;
+      flex-shrink: 0;
+      transition: transform 0.3s ease;
+    }
+    .trigger-btn:hover:not(:disabled) .btn-icon {
+      transform: scale(1.15);
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(200,241,53,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Status line ── */
+    .status-line {
+      margin-top: 24px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      height: 16px;
+      transition: color 0.3s ease;
+      opacity: 0;
+      animation: fadeUp 0.7s ease forwards 0.85s;
+    }
+    .status-line.ok  { color: var(--accent2); }
+    .status-line.err { color: var(--danger); }
+
+    /* ── Divider ── */
+    .divider {
+      width: 1px;
+      height: 48px;
+      background: linear-gradient(to bottom, transparent, var(--border), transparent);
+      margin: 40px 0 0;
+      opacity: 0;
+      animation: fadeUp 0.7s ease forwards 0.9s;
+    }
+
+    /* ── Footer ── */
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      opacity: 0;
+      animation: slideUp 0.7s ease forwards 0.3s;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    .footer-info {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .footer-info span { color: #333; }
+
+    .webhook-tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: #333;
+      letter-spacing: 0.5px;
+      padding: 5px 12px;
+      border: 1px solid #1a1a1a;
+      border-radius: 6px;
+      transition: color 0.3s, border-color 0.3s;
+    }
+    .webhook-tag:hover {
+      color: var(--muted);
+      border-color: var(--border);
+    }
+
+    /* ── Ripple ── */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transform: scale(0);
+      animation: rippleAnim 0.5s linear;
+      pointer-events: none;
+    }
+    @keyframes rippleAnim {
+      to { transform: scale(4); opacity: 0; }
+    }
+
+    /* ── Counter ── */
+    .run-counter {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .run-counter strong { color: var(--accent); font-weight: 400; }
+  </style>
+</head>
+<body>
+
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+
+  <div class="wrapper">
+
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <div class="logo-mark">
+          <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="2" width="5" height="5" fill="#c8f135"/>
+            <rect x="9" y="2" width="5" height="5" fill="#c8f135" opacity="0.4"/>
+            <rect x="2" y="9" width="5" height="5" fill="#c8f135" opacity="0.4"/>
+            <rect x="9" y="9" width="5" height="5" fill="#c8f135"/>
+          </svg>
+        </div>
+        <span class="logo-name">Naitus</span>
+      </div>
+      <div class="header-badge">
+        <span class="dot"></span>
+        n8n cloud
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main>
+      <p class="eyebrow">automation · content · ai</p>
+      <h1>Genera<br/>contenido <em>ahora</em></h1>
+      <p class="subtitle">Dispara el workflow de n8n para analizar referentes y generar contenido editorial para Naitus.</p>
+
+      <div class="btn-wrap">
+        <button class="trigger-btn" id="triggerBtn" onclick="triggerWebhook(this)">
+          <svg class="btn-icon" id="btnIcon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+          </svg>
+          <span id="btnText">Activar workflow</span>
+        </button>
+        <p class="status-line" id="statusLine">listo para ejecutar</p>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-info">
+        <span>webhook</span>
+        /contenido-naitus-referente
+      </div>
+      <div class="run-counter">
+        ejecuciones: <strong id="runCount">0</strong>
+      </div>
+      <div class="webhook-tag">naitus.app.n8n.cloud</div>
+    </footer>
+
+  </div>
+
+  <script>
+    const WEBHOOK = "https://naitus.app.n8n.cloud/webhook/contenido-naitus-referente";
+    let runCount = parseInt(localStorage.getItem("naitus_runs") || "0");
+    document.getElementById("runCount").textContent = runCount;
+
+    async function triggerWebhook(btn) {
+      if (btn.disabled) return;
+
+      // Ripple
+      const rect = btn.getBoundingClientRect();
+      const r = document.createElement("span");
+      r.className = "ripple";
+      r.style.cssText = `width:${btn.offsetWidth}px;height:${btn.offsetWidth}px;left:${(btn.offsetWidth/2) - (btn.offsetWidth/2)}px;top:${(btn.offsetHeight/2) - (btn.offsetWidth/2)}px`;
+      btn.appendChild(r);
+      setTimeout(() => r.remove(), 500);
+
+      // Loading state
+      setState(btn, "loading", "ejecutando workflow...");
+
+      try {
+        const res = await fetch(WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trigger: true, source: "naitus-panel", timestamp: new Date().toISOString() }),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        // Success
+        setState(btn, "success", "✓ workflow activado correctamente");
+        runCount++;
+        localStorage.setItem("naitus_runs", runCount);
+        document.getElementById("runCount").textContent = runCount;
+
+        setTimeout(() => setState(btn, "idle", "listo para ejecutar"), 3500);
+
+      } catch (err) {
+        setState(btn, "error", `✕ error al conectar · ${err.message}`);
+        setTimeout(() => setState(btn, "idle", "listo para ejecutar"), 4000);
+      }
+    }
+
+    function setState(btn, state, msg) {
+      const icon = document.getElementById("btnIcon");
+      const text = document.getElementById("btnText");
+      const status = document.getElementById("statusLine");
+
+      btn.className = "trigger-btn " + (state === "idle" ? "" : state);
+      btn.disabled = state === "loading";
+      status.className = "status-line " + (state === "success" ? "ok" : state === "error" ? "err" : "");
+      status.textContent = msg;
+
+      if (state === "loading") {
+        icon.outerHTML = '<div class="spinner" id="btnIcon"></div>';
+        text.textContent = "Ejecutando...";
+      } else if (state === "success") {
+        document.getElementById("btnIcon").outerHTML = `<svg class="btn-icon" id="btnIcon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+        text.textContent = "Workflow activado";
+      } else if (state === "error") {
+        document.getElementById("btnIcon").outerHTML = `<svg class="btn-icon" id="btnIcon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>`;
+        text.textContent = "Error al conectar";
+      } else {
+        document.getElementById("btnIcon").outerHTML = `<svg class="btn-icon" id="btnIcon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>`;
+        text.textContent = "Activar workflow";
+      }
+    }
+  </script>
+</body>
+</html>
